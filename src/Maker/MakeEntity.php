@@ -101,8 +101,7 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             ->addOption('broadcast', 'b', InputOption::VALUE_NONE, 'Add the ability to broadcast entity updates using Symfony UX Turbo?')
             ->addOption('regenerate', null, InputOption::VALUE_NONE, 'Instead of adding new fields, simply generate the methods (e.g. getter/setter) for existing fields')
             ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Overwrite any existing getter/setter methods')
-            ->setHelp(file_get_contents(__DIR__.'/../Resources/help/MakeEntity.txt'))
-        ;
+            ->setHelp(file_get_contents(__DIR__ . '/../Resources/help/MakeEntity.txt'));
 
         $inputConfig->setArgumentAsNonInteractive('name');
     }
@@ -219,6 +218,9 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
         while (true) {
             $newField = $this->askForNextField($io, $currentFields, $entityClassDetails->getFullName(), $isFirstField);
             $isFirstField = false;
+
+            ///var_dump($newField);
+            //die();
 
             if (null === $newField) {
                 break;
@@ -419,8 +421,39 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             $data['scale'] = $io->ask('Scale (number of decimals to store: 100.00 would be 2)', 0, [Validator::class, 'validateScale']);
         }
 
-        if ($io->confirm('Can this field be null in the database (nullable)', false)) {
+        if ($io->confirm('[test]Can this field be null in the database (nullable)', false)) {
             $data['nullable'] = true;
+        } else {
+            if ('boolean' === $type) {
+                if ($io->confirm('Set default value to false?', true)) {
+                    $io->success(sprintf('way to go'));
+
+                    $data['setDefaultValue'] = true;
+                    $data['defaultValue'] = false;
+
+                    //TODO check if options is already set --> extend array with value for default
+                    //$data['options'] = ['default' => false];
+                } else {
+
+                    if ($io->confirm('Set default value to true?', true)) {
+                        $io->success(sprintf('way to go#2'));
+
+                        $data['setDefaultValue'] = true;
+                        $data['defaultValue'] = true;
+
+                        //TODO check if options is already set --> extend array with value for default
+                        //$data['options'] = ['default' => false];
+                    } else {
+                        $io->error(sprintf('wrong answer'));
+                    }
+                    //$data['booleanDefaultFalse'] = true;
+                }
+            }
+
+            //TODO is there some configuration so default behaviour does not change
+
+
+            //TODO what testing framework is in use so test for this is added
         }
 
         return $data;
@@ -445,7 +478,7 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
                 'float' => [],
             ],
             'relation' => [
-                'relation' => 'a '.$wizard.' will help you build the relation',
+                'relation' => 'a ' . $wizard . ' will help you build the relation',
                 EntityRelation::MANY_TO_ONE => [],
                 EntityRelation::ONE_TO_MANY => [],
                 EntityRelation::MANY_TO_MANY => [],
@@ -475,8 +508,12 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
                 if (\is_string($subTypes) && $subTypes) {
                     $line .= sprintf(' or %s', $subTypes);
                 } elseif (\is_array($subTypes) && !empty($subTypes)) {
-                    $line .= sprintf(' or %s', implode(' or ', array_map(
-                        static fn ($subType) => sprintf('<comment>%s</comment>', $subType), $subTypes))
+                    $line .= sprintf(
+                        ' or %s',
+                        implode(' or ', array_map(
+                            static fn ($subType) => sprintf('<comment>%s</comment>', $subType),
+                            $subTypes
+                        ))
                     );
 
                     foreach ($subTypes as $subType) {
@@ -530,8 +567,8 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             // in the Entity namespace versus just checking the full class
             // name to avoid issues with classes like "Directory" that exist
             // in PHP's core.
-            if (class_exists($this->getEntityNamespace().'\\'.$answeredEntityClass)) {
-                $targetEntityClass = $this->getEntityNamespace().'\\'.$answeredEntityClass;
+            if (class_exists($this->getEntityNamespace() . '\\' . $answeredEntityClass)) {
+                $targetEntityClass = $this->getEntityNamespace() . '\\' . $answeredEntityClass;
             } elseif (class_exists($answeredEntityClass)) {
                 $targetEntityClass = $answeredEntityClass;
             } else {
@@ -601,7 +638,7 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             // recommend an inverse side, except for OneToOne, where it's inefficient
             $recommendMappingInverse = EntityRelation::ONE_TO_ONE !== $relation->getType();
 
-            $getterMethodName = 'get'.Str::asCamelCase(Str::getShortClassName($relation->getOwningClass()));
+            $getterMethodName = 'get' . Str::asCamelCase(Str::getShortClassName($relation->getOwningClass()));
             if (EntityRelation::ONE_TO_ONE !== $relation->getType()) {
                 // pluralize!
                 $getterMethodName = Str::singularCamelCaseToPluralCamelCase($getterMethodName);
@@ -737,7 +774,7 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
 
                 break;
             default:
-                throw new \InvalidArgumentException('Invalid type: '.$type);
+                throw new \InvalidArgumentException('Invalid type: ' . $type);
         }
 
         return $relation;

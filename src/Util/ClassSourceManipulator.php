@@ -107,7 +107,10 @@ final class ClassSourceManipulator
 
         $nullable = $columnOptions['nullable'] ?? false;
         $isId = (bool) ($columnOptions['id'] ?? false);
-        $attributes[] = $this->buildAttributeNode(Column::class, $columnOptions, 'ORM');
+
+
+
+
 
         $defaultValue = null;
         if ('array' === $typeHint && !$nullable) {
@@ -116,12 +119,43 @@ final class ClassSourceManipulator
             $typeHint = $this->addUseStatementIfNecessary(substr($typeHint, 1));
         }
 
-        $propertyType = $typeHint;
-        if ($propertyType && !$defaultValue) {
-            // all property types
-            $propertyType = '?'.$propertyType;
+        if ('bool' == $typeHint && !$nullable) {
+            $defaultValue = $columnOptions['defaultValue'] ?? false;
         }
 
+        file_put_contents("test.txt", "\n\nlength: " . count($columnOptions) . "\n", FILE_APPEND);
+        if (isset($columnOptions['options'])) {
+            file_put_contents("test.txt", "\n\ncolumn options: " . implode(" ", $columnOptions['options']) . " \n", FILE_APPEND);
+        } elseif (count($columnOptions) > 0) {
+            file_put_contents("test.txt", "\n\n all params: " . implode(" ", $columnOptions) . "\n", FILE_APPEND);
+        }
+
+        //TODO probably here the attributes are used
+        if (isset($columnOptions['setDefaultValue']) && $columnOptions['setDefaultValue']) {
+            file_put_contents("test.txt", "\n\nset default value is set: " . $columnOptions['setDefaultValue'], FILE_APPEND);
+            unset($columnOptions['setDefaultValue']);
+            if (isset($columnOptions['defaultValue'])) {
+                //TODO check if conform with defined type
+                $columnOptions['options'] = ['default' => $columnOptions['defaultValue']];
+                unset($columnOptions['defaultValue']);
+            }
+        }
+
+        $attributes[] = $this->buildAttributeNode(Column::class, $columnOptions, 'ORM');
+
+
+        $propertyType = $typeHint;
+        if ($propertyType && !$defaultValue) {
+            //TODO or better 'boolean' == $columnOptions['type']
+            if ('bool' == $typeHint && ($defaultValue === false || $defaultValue === true)) {
+                //TODO or just check if setDefaultValue ist gesetzt
+            } else {
+                // all property types
+                $propertyType = '?' . $propertyType;
+            }
+        }
+
+        file_put_contents("test.txt", "\n\ntypeHint: $typeHint and nullable: $nullable\n", FILE_APPEND);
         $this->addProperty(
             name: $propertyName,
             defaultValue: $defaultValue,
@@ -262,7 +296,7 @@ final class ClassSourceManipulator
 
     public function addGetter(string $propertyName, $returnType, bool $isReturnTypeNullable, array $commentLines = []): void
     {
-        $methodName = ('bool' === $returnType ? 'is' : 'get').Str::asCamelCase($propertyName);
+        $methodName = ('bool' === $returnType ? 'is' : 'get') . Str::asCamelCase($propertyName);
         $this->addCustomGetter($propertyName, $methodName, $returnType, $isReturnTypeNullable, $commentLines);
     }
 
@@ -357,6 +391,8 @@ final class ClassSourceManipulator
             return;
         }
 
+        file_put_contents("test.txt", "\n\n================\n", FILE_APPEND);
+
         $newPropertyBuilder = (new Builder\Property($name))->makePrivate();
 
         if (null !== $propertyType) {
@@ -365,17 +401,36 @@ final class ClassSourceManipulator
 
         if ($this->useAttributesForDoctrineMapping) {
             foreach ($attributes as $attribute) {
+                file_put_contents("test.txt", "attribute is set [" . $attribute->getType() . "]\n", FILE_APPEND);
                 $newPropertyBuilder->addAttribute($attribute);
             }
         }
 
         if ($comments) {
+            file_put_contents("test.txt", "comment is set [" . $comments . "]\n", FILE_APPEND);
             $newPropertyBuilder->setDocComment($this->createDocBlock($comments));
         }
+
+
 
         if (self::DEFAULT_VALUE_NONE !== $defaultValue) {
             $newPropertyBuilder->setDefault($defaultValue);
         }
+        file_put_contents("test.txt", "default is set [" . $defaultValue . "]\n", FILE_APPEND);
+        file_put_contents("test.txt", "name is set [" . $name . "]\n", FILE_APPEND);
+        file_put_contents("test.txt", "type is set [" . $propertyType . "]\n", FILE_APPEND);
+
+        /*if ('bool' == $propertyType) {
+            $newPropertyBuilder->setDefault(false);
+        }*/
+
+
+        //TODO always set to false
+
+
+
+        //TODO also for the attributes like nullable:
+
         $newPropertyNode = $newPropertyBuilder->getNode();
 
         $this->addNodeAfterProperties($newPropertyNode);
@@ -426,7 +481,7 @@ final class ClassSourceManipulator
 
     private function createSetterNodeBuilder(string $propertyName, $type, bool $isNullable, array $commentLines = []): Builder\Method
     {
-        $methodName = 'set'.Str::asCamelCase($propertyName);
+        $methodName = 'set' . Str::asCamelCase($propertyName);
         $setterNodeBuilder = (new Builder\Method($methodName))->makePublic();
 
         if ($commentLines) {
@@ -484,7 +539,7 @@ final class ClassSourceManipulator
             name: $relation->getPropertyName(),
             defaultValue: null,
             attributes: $attributes,
-            propertyType: '?'.$typeHint,
+            propertyType: '?' . $typeHint,
         );
 
         $this->addGetter(
@@ -619,7 +674,8 @@ final class ClassSourceManipulator
                 new Node\Expr\PropertyFetch(new Node\Expr\Variable('this'), $relation->getPropertyName()),
                 'add',
                 [new Node\Expr\Variable($argName)]
-            ));
+            )
+        );
 
         // set the owning side of the relationship
         if (!$relation->isOwning()) {
@@ -779,7 +835,7 @@ final class ClassSourceManipulator
                         // we have a conflicting alias!
                         // to be safe, use the fully-qualified class name
                         // everywhere and do not add another use statement
-                        return '\\'.$class;
+                        return '\\' . $class;
                     }
                 }
 
@@ -889,7 +945,7 @@ final class ClassSourceManipulator
                 continue;
             }
 
-            $newCode = str_replace($placeholder, '// '.$comment, $newCode);
+            $newCode = str_replace($placeholder, '// ' . $comment, $newCode);
         }
         $this->pendingComments = [];
 
@@ -986,7 +1042,7 @@ final class ClassSourceManipulator
             self::CONTEXT_CLASS_METHOD => new Node\Expr\Variable(
                 '__EXTRA__LINE'
             ),
-            default => throw new \Exception('Unknown context: '.$context),
+            default => throw new \Exception('Unknown context: ' . $context),
         };
     }
 
@@ -1003,7 +1059,7 @@ final class ClassSourceManipulator
             case self::CONTEXT_CLASS_METHOD:
                 return BuilderHelpers::normalizeStmt(new Node\Expr\Variable(sprintf('__COMMENT__VAR_%d', \count($this->pendingComments) - 1)));
             default:
-                throw new \Exception('Unknown context: '.$context);
+                throw new \Exception('Unknown context: ' . $context);
         }
     }
 
